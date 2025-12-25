@@ -1,13 +1,15 @@
 // Desabilitar verificação de atualização do ytdl-core
 process.env.YTDL_NO_UPDATE = 'true';
 
-let ytdl;
+let YtdlCore;
 try {
-  ytdl = require('@ybd-project/ytdl-core');
+  const ytdlModule = require('@ybd-project/ytdl-core');
+  // Versão 6.x usa classes, versões anteriores usam funções diretas
+  YtdlCore = ytdlModule.YtdlCore || ytdlModule.default?.YtdlCore || ytdlModule;
   console.log('@ybd-project/ytdl-core carregado com sucesso');
 } catch (err) {
   console.error('Erro ao carregar @ybd-project/ytdl-core:', err);
-  ytdl = null;
+  YtdlCore = null;
 }
 
 // Função para formatar duração
@@ -43,12 +45,13 @@ module.exports = async (req, res) => {
   console.log('Node version:', process.version);
   console.log('NODE_ENV:', process.env.NODE_ENV);
   
-  // Verificar se ytdl foi carregado
-  if (!ytdl) {
+  // Verificar se YtdlCore foi carregado
+  if (!YtdlCore) {
     console.error('@ybd-project/ytdl-core não foi carregado corretamente');
     console.error('Tentando carregar novamente...');
     try {
-      ytdl = require('@ybd-project/ytdl-core');
+      const ytdlModule = require('@ybd-project/ytdl-core');
+      YtdlCore = ytdlModule.YtdlCore || ytdlModule.default?.YtdlCore || ytdlModule;
       console.log('@ybd-project/ytdl-core carregado com sucesso na segunda tentativa');
     } catch (err) {
       console.error('Erro ao carregar @ybd-project/ytdl-core na segunda tentativa:', err);
@@ -59,15 +62,32 @@ module.exports = async (req, res) => {
     }
   }
   
-  // Verificar se o módulo está funcionando
-  if (ytdl && typeof ytdl.getInfo === 'function') {
-    console.log('@ybd-project/ytdl-core está funcionando corretamente');
-  } else {
-    console.error('@ybd-project/ytdl-core não tem a função getInfo');
+  // Criar instância do YtdlCore (versão 6.x usa classes)
+  let ytdl;
+  try {
+    // Verificar se é uma classe ou função
+    if (typeof YtdlCore === 'function' && YtdlCore.prototype && YtdlCore.prototype.constructor) {
+      // É uma classe, criar instância
+      ytdl = new YtdlCore();
+      console.log('Instância do YtdlCore criada com sucesso');
+    } else if (typeof YtdlCore.getFullInfo === 'function' || typeof YtdlCore.getInfo === 'function') {
+      // Já é uma instância ou objeto com métodos
+      ytdl = YtdlCore;
+      console.log('YtdlCore está pronto para uso');
+    } else {
+      // Tentar usar diretamente
+      ytdl = YtdlCore;
+      console.log('Usando YtdlCore diretamente');
+    }
+  } catch (err) {
+    console.error('Erro ao criar instância do YtdlCore:', err);
     return res.status(500).json({ 
-      error: 'Erro interno: módulo @ybd-project/ytdl-core não está funcionando corretamente'
+      error: 'Erro interno: não foi possível inicializar @ybd-project/ytdl-core',
+      details: err.message
     });
   }
+  
+  console.log('@ybd-project/ytdl-core está funcionando corretamente');
 
   // Flag para garantir que só enviamos uma resposta
   let responseSent = false;
