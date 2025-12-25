@@ -123,7 +123,7 @@ module.exports = async (req, res) => {
       try {
         body = JSON.parse(body);
       } catch (parseError) {
-        clearTimeout(safetyTimeout);
+        if (safetyTimeout) clearTimeout(safetyTimeout);
         console.error('Erro ao fazer parse do body string:', parseError);
         return sendResponse(400, { error: 'Body inválido - JSON malformado' });
       }
@@ -134,7 +134,7 @@ module.exports = async (req, res) => {
       try {
         body = JSON.parse(body.toString());
       } catch (parseError) {
-        clearTimeout(safetyTimeout);
+        if (safetyTimeout) clearTimeout(safetyTimeout);
         console.error('Erro ao fazer parse do Buffer:', parseError);
         return sendResponse(400, { error: 'Body inválido - Buffer malformado' });
       }
@@ -145,7 +145,7 @@ module.exports = async (req, res) => {
     const { url } = body || {};
 
     if (!url) {
-      clearTimeout(safetyTimeout);
+      if (safetyTimeout) clearTimeout(safetyTimeout);
       console.log('Erro: URL não fornecida');
       return sendResponse(400, { error: 'URL é obrigatória' });
     }
@@ -154,7 +154,7 @@ module.exports = async (req, res) => {
 
     // Validar URL do YouTube
     if (!ytdl.validateURL(url)) {
-      clearTimeout(safetyTimeout);
+      if (safetyTimeout) clearTimeout(safetyTimeout);
       console.log('Erro: URL inválida');
       return sendResponse(400, { error: 'URL do YouTube inválida' });
     }
@@ -188,14 +188,14 @@ module.exports = async (req, res) => {
     } catch (raceError) {
       // Limpar timeout em caso de erro
       if (timeoutId) clearTimeout(timeoutId);
-      clearTimeout(safetyTimeout);
+      if (safetyTimeout) clearTimeout(safetyTimeout);
       console.error('Erro ao obter info:', raceError.message);
       throw raceError;
     }
 
     // Verificar se temos informações válidas
     if (!info || !info.videoDetails) {
-      clearTimeout(safetyTimeout);
+      if (safetyTimeout) clearTimeout(safetyTimeout);
       console.log('Erro: info ou videoDetails inválidos');
       return sendResponse(500, { error: 'Não foi possível obter informações do vídeo' });
     }
@@ -272,11 +272,11 @@ module.exports = async (req, res) => {
       sizes: formats
     };
 
-    clearTimeout(safetyTimeout);
+    if (safetyTimeout) clearTimeout(safetyTimeout);
     console.log('✓ Processamento concluído, enviando resposta...');
     sendResponse(200, videoInfo);
   } catch (error) {
-    clearTimeout(safetyTimeout);
+    if (safetyTimeout) clearTimeout(safetyTimeout);
     console.error('=== ERRO CAPTURADO ===');
     console.error('Tipo do erro:', error?.constructor?.name);
     console.error('Mensagem do erro:', error?.message);
