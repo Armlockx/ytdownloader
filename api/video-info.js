@@ -1,7 +1,14 @@
 // Desabilitar verificação de atualização do ytdl-core
 process.env.YTDL_NO_UPDATE = 'true';
 
-const ytdl = require('@distube/ytdl-core');
+let ytdl;
+try {
+  ytdl = require('@distube/ytdl-core');
+  console.log('ytdl-core carregado com sucesso');
+} catch (err) {
+  console.error('Erro ao carregar ytdl-core:', err);
+  throw err;
+}
 
 // Função para formatar duração
 function formatDuration(seconds) {
@@ -25,26 +32,6 @@ function formatBytes(bytes) {
 }
 
 module.exports = async (req, res) => {
-  // Permitir CORS
-  res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
-
-  // Handle OPTIONS request
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-
-  // Apenas aceitar POST
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Método não permitido' });
-  }
-
-  console.log('=== NOVA REQUISIÇÃO RECEBIDA ===');
-  console.log('Timestamp:', new Date().toISOString());
-  
   // Flag para garantir que só enviamos uma resposta
   let responseSent = false;
   
@@ -63,17 +50,51 @@ module.exports = async (req, res) => {
     }
   };
 
-  // Timeout de segurança - garantir resposta mesmo se tudo falhar
-  const safetyTimeout = setTimeout(() => {
-    console.error('TIMEOUT DE SEGURANÇA ATIVADO (35s)');
-    if (!responseSent) {
-      sendResponse(504, { error: 'A requisição demorou muito tempo' });
-    }
-  }, 35000);
-
   try {
+    // Permitir CORS
+    res.setHeader('Access-Control-Allow-Credentials', true);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+
+    // Handle OPTIONS request
+    if (req.method === 'OPTIONS') {
+      res.status(200).end();
+      return;
+    }
+
+    // Apenas aceitar POST
+    if (req.method !== 'POST') {
+      return sendResponse(405, { error: 'Método não permitido' });
+    }
+
+    console.log('=== NOVA REQUISIÇÃO RECEBIDA ===');
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('Method:', req.method);
+    
+    // Timeout de segurança - garantir resposta mesmo se tudo falhar
+    const safetyTimeout = setTimeout(() => {
+      console.error('TIMEOUT DE SEGURANÇA ATIVADO (35s)');
+      if (!responseSent) {
+        sendResponse(504, { error: 'A requisição demorou muito tempo' });
+      }
+    }, 35000);
+
+    // Parse do body - Vercel pode enviar como string ou objeto
+    let body = req.body;
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch (parseError) {
+        clearTimeout(safetyTimeout);
+        console.error('Erro ao fazer parse do body:', parseError);
+        return sendResponse(400, { error: 'Body inválido' });
+      }
+    }
+
     console.log('Processando URL...');
-    const { url } = req.body;
+    console.log('Body recebido:', body ? JSON.stringify(body).substring(0, 200) : 'null');
+    const { url } = body || {};
 
     if (!url) {
       clearTimeout(safetyTimeout);
@@ -209,13 +230,17 @@ module.exports = async (req, res) => {
   } catch (error) {
     clearTimeout(safetyTimeout);
     console.error('=== ERRO CAPTURADO ===');
-    console.error('Erro ao obter informações do vídeo:', error);
-    if (error.stack) {
+    console.error('Tipo do erro:', error?.constructor?.name);
+    console.error('Mensagem do erro:', error?.message);
+    console.error('Erro completo:', error);
+    if (error?.stack) {
       console.error('Stack trace:', error.stack);
     }
     
-    let errorMessage = 'Erro ao obter informações do vídeo. Verifique se a URL está correta.';
-    let statusCode = 500;
+    // Se não foi possível enviar resposta ainda, tentar enviar erro genérico
+    if (!responseSent) {
+      let errorMessage = 'Erro ao obter informações do vídeo. Verifique se a URL está correta.';
+      let statusCode = 500;
     
     if (error && error.message) {
       if (error.message.includes('Video unavailable')) {
@@ -245,11 +270,27 @@ module.exports = async (req, res) => {
       }
     }
     
-    console.log('Enviando resposta de erro:', statusCode, errorMessage);
-    // Garantir que sempre retornamos JSON
-    sendResponse(statusCode, { error: errorMessage });
+      console.log('Enviando resposta de erro:', statusCode, errorMessage);
+      // Garantir que sempre retornamos JSON
+      sendResponse(statusCode, { error: errorMessage });
+    } else {
+      // Se já foi enviada resposta, apenas logar
+      console.log('Resposta já foi enviada, ignorando erro adicional');
+    }
+  } catch (outerError) {
+    // Capturar qualquer erro que possa ter ocorrido no processamento do erro
+    console.error('Erro crítico ao processar requisição:', outerError);
+    if (!responseSent) {
+      try {
+        res.status(500).json({ error: 'Erro interno do servidor' });
+      } catch (finalError) {
+        console.error('Erro ao enviar resposta final:', finalError);
+      }
+    }
   } finally {
-    clearTimeout(safetyTimeout);
+    if (typeof safetyTimeout !== 'undefined') {
+      clearTimeout(safetyTimeout);
+    }
     console.log('=== FIM DA REQUISIÇÃO ===\n');
   }
 };
