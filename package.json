@@ -17,6 +17,9 @@
   ],
   "author": "",
   "license": "MIT",
+  "engines": {
+    "node": "18.x"
+  },
   "dependencies": {
     "@distube/ytdl-core": "^4.16.12",
     "cors": "^2.8.5",
