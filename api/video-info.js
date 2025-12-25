@@ -7,7 +7,8 @@ try {
   console.log('ytdl-core carregado com sucesso');
 } catch (err) {
   console.error('Erro ao carregar ytdl-core:', err);
-  throw err;
+  // Não fazer throw aqui - deixar a função lidar com o erro
+  ytdl = null;
 }
 
 // Função para formatar duração
@@ -32,6 +33,14 @@ function formatBytes(bytes) {
 }
 
 module.exports = async (req, res) => {
+  // Verificar se ytdl foi carregado
+  if (!ytdl) {
+    console.error('ytdl-core não foi carregado corretamente');
+    return res.status(500).json({ 
+      error: 'Erro interno: módulo ytdl-core não disponível' 
+    });
+  }
+
   // Flag para garantir que só enviamos uma resposta
   let responseSent = false;
   
@@ -256,8 +265,8 @@ module.exports = async (req, res) => {
     if (!responseSent) {
       let errorMessage = 'Erro ao obter informações do vídeo. Verifique se a URL está correta.';
       let statusCode = 500;
-    
-    if (error && error.message) {
+      
+      if (error && error.message) {
       if (error.message.includes('Video unavailable')) {
         errorMessage = 'Vídeo não disponível ou privado';
         statusCode = 404;
