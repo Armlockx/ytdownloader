@@ -31,6 +31,13 @@ function formatBytes(bytes) {
   return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
 }
 
+// Função para validar URL do YouTube
+function validateYouTubeURL(url) {
+  if (!url || typeof url !== 'string') return false;
+  const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/;
+  return youtubeRegex.test(url);
+}
+
 module.exports = async (req, res) => {
   console.log('=== FUNÇÃO INICIADA ===');
   console.log('Node version:', process.version);
@@ -53,10 +60,10 @@ module.exports = async (req, res) => {
   }
   
   // Verificar se o módulo está funcionando
-  if (ytdl && typeof ytdl.validateURL === 'function') {
+  if (ytdl && typeof ytdl.getInfo === 'function') {
     console.log('@ybd-project/ytdl-core está funcionando corretamente');
   } else {
-    console.error('@ybd-project/ytdl-core não tem a função validateURL');
+    console.error('@ybd-project/ytdl-core não tem a função getInfo');
     return res.status(500).json({ 
       error: 'Erro interno: módulo @ybd-project/ytdl-core não está funcionando corretamente'
     });
@@ -152,7 +159,7 @@ module.exports = async (req, res) => {
     console.log('URL recebida:', url);
 
     // Validar URL do YouTube
-    if (!ytdl.validateURL(url)) {
+    if (!validateYouTubeURL(url)) {
       if (safetyTimeout) clearTimeout(safetyTimeout);
       console.log('Erro: URL inválida');
       return sendResponse(400, { error: 'URL do YouTube inválida' });
