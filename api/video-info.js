@@ -67,9 +67,14 @@ module.exports = async (req, res) => {
   try {
     // Verificar se é uma classe ou função
     if (typeof YtdlCore === 'function' && YtdlCore.prototype && YtdlCore.prototype.constructor) {
-      // É uma classe, criar instância
-      ytdl = new YtdlCore();
-      console.log('Instância do YtdlCore criada com sucesso');
+      // É uma classe, criar instância com configurações para evitar detecção de bot
+      ytdl = new YtdlCore({
+        // Especificar client para evitar warning
+        clients: ['web'], // Usar client web
+        // Configurar logs (opcional, mas pode ajudar)
+        logDisplay: ['error', 'warning']
+      });
+      console.log('Instância do YtdlCore criada com sucesso (client: web)');
     } else if (typeof YtdlCore.getFullInfo === 'function' || typeof YtdlCore.getInfo === 'function') {
       // Já é uma instância ou objeto com métodos
       ytdl = YtdlCore;
