@@ -212,22 +212,26 @@ module.exports = async (req, res) => {
       
       console.log('Usando método:', getInfoMethod === ytdl.getFullInfo ? 'getFullInfo' : 'getInfo');
       
-      info = await Promise.race([
-        getInfoMethod.call(ytdl, url, {
-          requestOptions: {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-              'Accept-Language': 'en-US,en;q=0.9',
-              'Accept-Encoding': 'gzip, deflate, br',
-              'Referer': 'https://www.youtube.com/',
-              'Origin': 'https://www.youtube.com',
-              'Sec-Fetch-Dest': 'empty',
-              'Sec-Fetch-Mode': 'cors',
-              'Sec-Fetch-Site': 'same-origin'
-            }
+      // Configurar opções para evitar detecção de bot
+      const options = {
+        requestOptions: {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Referer': 'https://www.youtube.com/',
+            'Origin': 'https://www.youtube.com',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-origin'
           }
-        }).then(result => {
+        }
+        // Nota: client é configurado na criação da instância, não aqui
+      };
+      
+      info = await Promise.race([
+        getInfoMethod.call(ytdl, url, options).then(result => {
           console.log('ytdl.getFullInfo/getInfo concluído com sucesso');
           return result;
         }).catch(err => {
