@@ -290,49 +290,39 @@ module.exports = async (req, res) => {
       let statusCode = 500;
       
       if (error && error.message) {
-      if (error.message.includes('Video unavailable')) {
-        errorMessage = 'Vídeo não disponível ou privado';
-        statusCode = 404;
-      } else if (error.message.includes('Private video')) {
-        errorMessage = 'Este vídeo é privado';
-        statusCode = 403;
-      } else if (error.message.includes('Sign in to confirm your age')) {
-        errorMessage = 'Este vídeo requer confirmação de idade';
-        statusCode = 403;
-      } else if (error.message.includes('Timeout')) {
-        errorMessage = 'A requisição demorou muito. Tente novamente ou use outro vídeo.';
-        statusCode = 504;
-      } else if (error.message.includes('Unable to retrieve video metadata') || error.message.includes('ECONNRESET') || error.message.includes('socket') || error.message.includes('ECONNREFUSED') || error.message.includes('ENOTFOUND')) {
-        errorMessage = 'Erro de conexão com o YouTube. Tente novamente em alguns instantes.';
-        statusCode = 503;
-      } else if (error.message.includes('ERR_INTERNET_DISCONNECTED') || error.message.includes('network')) {
-        errorMessage = 'Erro de conexão com o YouTube. Verifique sua internet.';
-        statusCode = 503;
-      } else if (error.message.includes('parse') || error.message.includes('decipher') || error.message.includes('transform')) {
-        // Erros de parsing do ytdl-core - geralmente funcionam mesmo com warnings
-        errorMessage = 'Erro ao processar informações do vídeo. Tente novamente.';
-        statusCode = 503;
-      } else {
-        errorMessage = error.message.substring(0, 200); // Limitar tamanho da mensagem
+        if (error.message.includes('Video unavailable')) {
+          errorMessage = 'Vídeo não disponível ou privado';
+          statusCode = 404;
+        } else if (error.message.includes('Private video')) {
+          errorMessage = 'Este vídeo é privado';
+          statusCode = 403;
+        } else if (error.message.includes('Sign in to confirm your age')) {
+          errorMessage = 'Este vídeo requer confirmação de idade';
+          statusCode = 403;
+        } else if (error.message.includes('Timeout')) {
+          errorMessage = 'A requisição demorou muito. Tente novamente ou use outro vídeo.';
+          statusCode = 504;
+        } else if (error.message.includes('Unable to retrieve video metadata') || error.message.includes('ECONNRESET') || error.message.includes('socket') || error.message.includes('ECONNREFUSED') || error.message.includes('ENOTFOUND')) {
+          errorMessage = 'Erro de conexão com o YouTube. Tente novamente em alguns instantes.';
+          statusCode = 503;
+        } else if (error.message.includes('ERR_INTERNET_DISCONNECTED') || error.message.includes('network')) {
+          errorMessage = 'Erro de conexão com o YouTube. Verifique sua internet.';
+          statusCode = 503;
+        } else if (error.message.includes('parse') || error.message.includes('decipher') || error.message.includes('transform')) {
+          // Erros de parsing do ytdl-core - geralmente funcionam mesmo com warnings
+          errorMessage = 'Erro ao processar informações do vídeo. Tente novamente.';
+          statusCode = 503;
+        } else {
+          errorMessage = error.message.substring(0, 200); // Limitar tamanho da mensagem
+        }
       }
-    }
-    
+      
       console.log('Enviando resposta de erro:', statusCode, errorMessage);
       // Garantir que sempre retornamos JSON
       sendResponse(statusCode, { error: errorMessage });
     } else {
       // Se já foi enviada resposta, apenas logar
       console.log('Resposta já foi enviada, ignorando erro adicional');
-    }
-  } catch (outerError) {
-    // Capturar qualquer erro que possa ter ocorrido no processamento do erro
-    console.error('Erro crítico ao processar requisição:', outerError);
-    if (!responseSent) {
-      try {
-        res.status(500).json({ error: 'Erro interno do servidor' });
-      } catch (finalError) {
-        console.error('Erro ao enviar resposta final:', finalError);
-      }
     }
   } finally {
     if (typeof safetyTimeout !== 'undefined') {
