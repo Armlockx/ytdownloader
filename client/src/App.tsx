@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import './App.css';
 
 interface VideoInfo {
@@ -112,6 +113,7 @@ function App() {
 
   return (
     <div className="App">
+      <SpeedInsights />
       <div className="container">
         <header className="header">
           <h1 className="title">📺 YouTube Info Viewer</h1>
