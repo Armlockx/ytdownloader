@@ -1,0 +1,8 @@
+node_modules/
+client/node_modules/
+client/build/
+.env
+.DS_Store
+*.log
+*-player-script.js
+

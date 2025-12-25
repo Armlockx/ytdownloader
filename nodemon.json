@@ -1,0 +1,7 @@
+{
+  "ignore": ["*.js.map", "*-player-script.js", "*.log", "node_modules", "client"],
+  "watch": ["server.js", "package.json"],
+  "ext": "js,json",
+  "delay": 1000
+}
+
