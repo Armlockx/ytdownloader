@@ -1,19 +1,13 @@
 // Desabilitar verificação de atualização do ytdl-core
 process.env.YTDL_NO_UPDATE = 'true';
 
-let YTDlpWrap;
+let ytdl;
 try {
-  YTDlpWrap = require('yt-dlp-wrap').default;
-  console.log('yt-dlp-wrap carregado com sucesso');
+  ytdl = require('@ybd-project/ytdl-core');
+  console.log('@ybd-project/ytdl-core carregado com sucesso');
 } catch (err) {
-  console.error('Erro ao carregar yt-dlp-wrap:', err);
-  YTDlpWrap = null;
-}
-
-// Função para validar URL do YouTube
-function validateYouTubeURL(url) {
-  const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/;
-  return youtubeRegex.test(url);
+  console.error('Erro ao carregar @ybd-project/ytdl-core:', err);
+  ytdl = null;
 }
 
 // Função para formatar duração
@@ -42,23 +36,31 @@ module.exports = async (req, res) => {
   console.log('Node version:', process.version);
   console.log('NODE_ENV:', process.env.NODE_ENV);
   
-  // Verificar se yt-dlp-wrap foi carregado
-  if (!YTDlpWrap) {
-    console.error('yt-dlp-wrap não foi carregado corretamente');
+  // Verificar se ytdl foi carregado
+  if (!ytdl) {
+    console.error('@ybd-project/ytdl-core não foi carregado corretamente');
     console.error('Tentando carregar novamente...');
     try {
-      YTDlpWrap = require('yt-dlp-wrap').default;
-      console.log('yt-dlp-wrap carregado com sucesso na segunda tentativa');
+      ytdl = require('@ybd-project/ytdl-core');
+      console.log('@ybd-project/ytdl-core carregado com sucesso na segunda tentativa');
     } catch (err) {
-      console.error('Erro ao carregar yt-dlp-wrap na segunda tentativa:', err);
+      console.error('Erro ao carregar @ybd-project/ytdl-core na segunda tentativa:', err);
       return res.status(500).json({ 
-        error: 'Erro interno: módulo yt-dlp-wrap não disponível',
+        error: 'Erro interno: módulo @ybd-project/ytdl-core não disponível',
         details: err.message
       });
     }
   }
   
-  console.log('yt-dlp-wrap está funcionando corretamente');
+  // Verificar se o módulo está funcionando
+  if (ytdl && typeof ytdl.validateURL === 'function') {
+    console.log('@ybd-project/ytdl-core está funcionando corretamente');
+  } else {
+    console.error('@ybd-project/ytdl-core não tem a função validateURL');
+    return res.status(500).json({ 
+      error: 'Erro interno: módulo @ybd-project/ytdl-core não está funcionando corretamente'
+    });
+  }
 
   // Flag para garantir que só enviamos uma resposta
   let responseSent = false;
@@ -150,13 +152,13 @@ module.exports = async (req, res) => {
     console.log('URL recebida:', url);
 
     // Validar URL do YouTube
-    if (!validateYouTubeURL(url)) {
+    if (!ytdl.validateURL(url)) {
       if (safetyTimeout) clearTimeout(safetyTimeout);
       console.log('Erro: URL inválida');
       return sendResponse(400, { error: 'URL do YouTube inválida' });
     }
 
-    console.log('Iniciando yt-dlp...');
+    console.log('Iniciando ytdl.getInfo...');
     // Obter informações do vídeo com timeout melhorado
     let timeoutId;
     const timeoutPromise = new Promise((_, reject) => {
@@ -166,55 +168,33 @@ module.exports = async (req, res) => {
       }, 30000);
     });
 
-    let ytDlpInfo;
     let info;
     try {
-      const ytDlpWrap = new YTDlpWrap();
-      
-      // Obter informações do vídeo usando yt-dlp
-      ytDlpInfo = await Promise.race([
-        ytDlpWrap.execPromise([
-          url,
-          '--dump-json',
-          '--no-warnings',
-          '--no-playlist',
-          '--no-check-certificate'
-        ]).then(result => {
-          console.log('yt-dlp concluído com sucesso');
-          // yt-dlp retorna JSON como string
-          try {
-            return JSON.parse(result);
-          } catch (parseErr) {
-            // Se já for objeto, retornar direto
-            if (typeof result === 'object') {
-              return result;
+      // Usar @ybd-project/ytdl-core com headers mais realistas para evitar detecção de bot
+      info = await Promise.race([
+        ytdl.getInfo(url, {
+          requestOptions: {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+              'Accept-Language': 'en-US,en;q=0.9',
+              'Accept-Encoding': 'gzip, deflate, br',
+              'Referer': 'https://www.youtube.com/',
+              'Origin': 'https://www.youtube.com',
+              'Sec-Fetch-Dest': 'empty',
+              'Sec-Fetch-Mode': 'cors',
+              'Sec-Fetch-Site': 'same-origin'
             }
-            throw new Error('Erro ao fazer parse da resposta do yt-dlp: ' + parseErr.message);
           }
+        }).then(result => {
+          console.log('ytdl.getInfo concluído com sucesso');
+          return result;
         }).catch(err => {
-          console.error('Erro no yt-dlp:', err.message);
+          console.error('Erro no ytdl.getInfo:', err.message);
           throw err;
         }),
         timeoutPromise
       ]);
-      
-      // Converter formato do yt-dlp para o formato esperado (compatível com ytdl-core)
-      info = {
-        videoDetails: {
-          title: ytDlpInfo.title || 'Sem título',
-          lengthSeconds: ytDlpInfo.duration ? Math.floor(ytDlpInfo.duration).toString() : '0',
-          author: {
-            name: ytDlpInfo.uploader || ytDlpInfo.channel || 'Desconhecido'
-          },
-          ownerChannelName: ytDlpInfo.channel || ytDlpInfo.uploader || 'Desconhecido',
-          description: ytDlpInfo.description || '',
-          thumbnails: ytDlpInfo.thumbnails || (ytDlpInfo.thumbnail ? [{ url: ytDlpInfo.thumbnail }] : []),
-          viewCount: ytDlpInfo.view_count ? ytDlpInfo.view_count.toString() : '0',
-          publishDate: ytDlpInfo.upload_date || '',
-          videoId: ytDlpInfo.id || ''
-        },
-        formats: ytDlpInfo.formats || []
-      };
       
       // Limpar timeout se a requisição foi bem-sucedida
       if (timeoutId) clearTimeout(timeoutId);
@@ -254,18 +234,12 @@ module.exports = async (req, res) => {
         console.log('Nenhum formato disponível para este vídeo');
         formats = [];
       } else {
-        // yt-dlp usa 'vcodec' e 'acodec' para detectar vídeo/áudio
         // Primeiro tentar formatos com vídeo e áudio
-        formats = info.formats.filter(format => 
-          format.vcodec && format.vcodec !== 'none' && 
-          format.acodec && format.acodec !== 'none'
-        );
+        formats = info.formats.filter(format => format.hasVideo && format.hasAudio);
         
         // Se não houver, usar apenas vídeo
         if (formats.length === 0) {
-          formats = info.formats.filter(format => 
-            format.vcodec && format.vcodec !== 'none'
-          );
+          formats = info.formats.filter(format => format.hasVideo);
         }
         
         // Limitar a 10 formatos para vídeos longos (mais rápido)
@@ -276,25 +250,13 @@ module.exports = async (req, res) => {
         }
         
         // Processar formatos de forma mais eficiente
-        // yt-dlp usa formato diferente, adaptar
         formats = formats.map(format => {
           try {
-            // yt-dlp usa 'filesize' ou 'filesize_approx'
-            const sizeBytes = format.filesize ? parseInt(format.filesize) : 
-                            (format.filesize_approx ? parseInt(format.filesize_approx) : 0);
-            
-            // yt-dlp usa 'format_note' ou 'height' para qualidade
-            const quality = format.format_note || 
-                          (format.height ? `${format.height}p` : null) ||
-                          format.quality || 'unknown';
-            
-            // yt-dlp usa 'ext' para container
-            const container = format.ext || format.container || 'unknown';
-            
+            const sizeBytes = format.contentLength ? parseInt(format.contentLength) : 0;
             if (sizeBytes > 0) {
               return {
-                quality: quality,
-                container: container,
+                quality: format.qualityLabel || format.quality || 'unknown',
+                container: format.container || 'unknown',
                 size: formatBytes(sizeBytes),
                 sizeBytes: sizeBytes
               };
