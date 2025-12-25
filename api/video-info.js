@@ -65,6 +65,7 @@ module.exports = async (req, res) => {
 
   // Flag para garantir que só enviamos uma resposta
   let responseSent = false;
+  let safetyTimeout;
   
   const sendResponse = (statusCode, data) => {
     if (responseSent || res.headersSent) {
@@ -105,7 +106,7 @@ module.exports = async (req, res) => {
     
     // Timeout de segurança - garantir resposta mesmo se tudo falhar
     // Reduzido para 25s para ficar dentro do limite do Vercel (maxDuration: 60s)
-    const safetyTimeout = setTimeout(() => {
+    safetyTimeout = setTimeout(() => {
       console.error('TIMEOUT DE SEGURANÇA ATIVADO (25s)');
       if (!responseSent) {
         sendResponse(504, { error: 'A requisição demorou muito tempo' });
