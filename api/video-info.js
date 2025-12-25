@@ -198,8 +198,17 @@ module.exports = async (req, res) => {
     let info;
     try {
       // Usar @ybd-project/ytdl-core com headers mais realistas para evitar detecção de bot
+      // Versão 6.x usa getFullInfo, versões anteriores usam getInfo
+      const getInfoMethod = ytdl.getFullInfo || ytdl.getInfo;
+      
+      if (!getInfoMethod || typeof getInfoMethod !== 'function') {
+        throw new Error('Método getInfo/getFullInfo não encontrado no ytdl-core');
+      }
+      
+      console.log('Usando método:', getInfoMethod === ytdl.getFullInfo ? 'getFullInfo' : 'getInfo');
+      
       info = await Promise.race([
-        ytdl.getInfo(url, {
+        getInfoMethod.call(ytdl, url, {
           requestOptions: {
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -214,10 +223,10 @@ module.exports = async (req, res) => {
             }
           }
         }).then(result => {
-          console.log('ytdl.getInfo concluído com sucesso');
+          console.log('ytdl.getFullInfo/getInfo concluído com sucesso');
           return result;
         }).catch(err => {
-          console.error('Erro no ytdl.getInfo:', err.message);
+          console.error('Erro no ytdl.getFullInfo/getInfo:', err.message);
           throw err;
         }),
         timeoutPromise
