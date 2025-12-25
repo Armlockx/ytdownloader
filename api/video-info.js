@@ -33,11 +33,33 @@ function formatBytes(bytes) {
 }
 
 module.exports = async (req, res) => {
+  console.log('=== FUNÇÃO INICIADA ===');
+  console.log('Node version:', process.version);
+  console.log('NODE_ENV:', process.env.NODE_ENV);
+  
   // Verificar se ytdl foi carregado
   if (!ytdl) {
     console.error('ytdl-core não foi carregado corretamente');
+    console.error('Tentando carregar novamente...');
+    try {
+      ytdl = require('@distube/ytdl-core');
+      console.log('ytdl-core carregado com sucesso na segunda tentativa');
+    } catch (err) {
+      console.error('Erro ao carregar ytdl-core na segunda tentativa:', err);
+      return res.status(500).json({ 
+        error: 'Erro interno: módulo ytdl-core não disponível',
+        details: err.message
+      });
+    }
+  }
+  
+  // Verificar se o módulo está funcionando
+  if (ytdl && typeof ytdl.validateURL === 'function') {
+    console.log('ytdl-core está funcionando corretamente');
+  } else {
+    console.error('ytdl-core não tem a função validateURL');
     return res.status(500).json({ 
-      error: 'Erro interno: módulo ytdl-core não disponível' 
+      error: 'Erro interno: módulo ytdl-core não está funcionando corretamente'
     });
   }
 
@@ -82,12 +104,13 @@ module.exports = async (req, res) => {
     console.log('Method:', req.method);
     
     // Timeout de segurança - garantir resposta mesmo se tudo falhar
+    // Reduzido para 25s para ficar dentro do limite do Vercel (maxDuration: 60s)
     const safetyTimeout = setTimeout(() => {
-      console.error('TIMEOUT DE SEGURANÇA ATIVADO (35s)');
+      console.error('TIMEOUT DE SEGURANÇA ATIVADO (25s)');
       if (!responseSent) {
         sendResponse(504, { error: 'A requisição demorou muito tempo' });
       }
-    }, 35000);
+    }, 25000);
 
     // Parse do body - Vercel faz parse automático se Content-Type for application/json
     let body = req.body;
