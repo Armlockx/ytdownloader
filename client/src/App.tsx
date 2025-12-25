@@ -37,8 +37,10 @@ function App() {
     setVideoInfo(null);
 
     try {
-      // Usar URL absoluta (CORS está habilitado no servidor)
-      const apiUrl = 'http://localhost:5000/api/video-info';
+      // Usar URL relativa em produção, absoluta em desenvolvimento
+      const apiUrl = process.env.NODE_ENV === 'production' 
+        ? '/api/video-info'
+        : 'http://localhost:5000/api/video-info';
 
       // Criar AbortController para timeout (aumentado para 90s)
       const controller = new AbortController();
