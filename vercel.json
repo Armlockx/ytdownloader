@@ -13,18 +13,7 @@
     "api/video-info.js": {
       "runtime": "nodejs18.x",
       "memory": 1024,
-      "maxDuration": 60,
-      "includeFiles": [
-        "node_modules/@distube/ytdl-core/**",
-        "node_modules/ytdl-core/**",
-        "node_modules/miniget/**",
-        "node_modules/m3u8stream/**",
-        "node_modules/html-entities/**",
-        "node_modules/sax/**",
-        "node_modules/url-parse/**",
-        "node_modules/set-cookie-parser/**",
-        "node_modules/undici-types/**"
-      ]
+      "maxDuration": 60
     }
   }
 }
