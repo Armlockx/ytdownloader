@@ -80,49 +80,35 @@ module.exports = async (req, res) => {
       }
     }, 35000);
 
-    // Parse do body - Vercel pode enviar como string, Buffer ou objeto
+    // Parse do body - Vercel faz parse automático se Content-Type for application/json
     let body = req.body;
     console.log('Tipo do body:', typeof body);
-    console.log('Body raw:', body);
+    console.log('Body recebido:', body);
     
-    if (!body) {
-      // Tentar ler do stream se body não estiver disponível
-      try {
-        const chunks = [];
-        for await (const chunk of req) {
-          chunks.push(chunk);
-        }
-        const bodyString = Buffer.concat(chunks).toString();
-        if (bodyString) {
-          body = JSON.parse(bodyString);
-        }
-      } catch (streamError) {
-        console.error('Erro ao ler stream:', streamError);
-      }
-    }
-    
-    if (typeof body === 'string') {
+    // Se body for string, tentar fazer parse
+    if (typeof body === 'string' && body.length > 0) {
       try {
         body = JSON.parse(body);
       } catch (parseError) {
         clearTimeout(safetyTimeout);
-        console.error('Erro ao fazer parse do body:', parseError);
-        return sendResponse(400, { error: 'Body inválido' });
+        console.error('Erro ao fazer parse do body string:', parseError);
+        return sendResponse(400, { error: 'Body inválido - JSON malformado' });
       }
     }
     
+    // Se body for Buffer, converter para string e fazer parse
     if (Buffer.isBuffer(body)) {
       try {
         body = JSON.parse(body.toString());
       } catch (parseError) {
         clearTimeout(safetyTimeout);
         console.error('Erro ao fazer parse do Buffer:', parseError);
-        return sendResponse(400, { error: 'Body inválido' });
+        return sendResponse(400, { error: 'Body inválido - Buffer malformado' });
       }
     }
 
     console.log('Processando URL...');
-    console.log('Body parseado:', body ? JSON.stringify(body).substring(0, 200) : 'null');
+    console.log('Body parseado:', body);
     const { url } = body || {};
 
     if (!url) {
