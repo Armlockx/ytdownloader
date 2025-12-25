@@ -80,8 +80,27 @@ module.exports = async (req, res) => {
       }
     }, 35000);
 
-    // Parse do body - Vercel pode enviar como string ou objeto
+    // Parse do body - Vercel pode enviar como string, Buffer ou objeto
     let body = req.body;
+    console.log('Tipo do body:', typeof body);
+    console.log('Body raw:', body);
+    
+    if (!body) {
+      // Tentar ler do stream se body não estiver disponível
+      try {
+        const chunks = [];
+        for await (const chunk of req) {
+          chunks.push(chunk);
+        }
+        const bodyString = Buffer.concat(chunks).toString();
+        if (bodyString) {
+          body = JSON.parse(bodyString);
+        }
+      } catch (streamError) {
+        console.error('Erro ao ler stream:', streamError);
+      }
+    }
+    
     if (typeof body === 'string') {
       try {
         body = JSON.parse(body);
@@ -91,9 +110,19 @@ module.exports = async (req, res) => {
         return sendResponse(400, { error: 'Body inválido' });
       }
     }
+    
+    if (Buffer.isBuffer(body)) {
+      try {
+        body = JSON.parse(body.toString());
+      } catch (parseError) {
+        clearTimeout(safetyTimeout);
+        console.error('Erro ao fazer parse do Buffer:', parseError);
+        return sendResponse(400, { error: 'Body inválido' });
+      }
+    }
 
     console.log('Processando URL...');
-    console.log('Body recebido:', body ? JSON.stringify(body).substring(0, 200) : 'null');
+    console.log('Body parseado:', body ? JSON.stringify(body).substring(0, 200) : 'null');
     const { url } = body || {};
 
     if (!url) {
